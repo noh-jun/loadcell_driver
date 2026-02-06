@@ -1,5 +1,5 @@
 # 센서 드라이버 노드의 파라미터 설정
-battery_driver_node_1:
+loadcell_driver_node_1:
   ros__parameters:
     # 센서 식별자 (문자열)
     sensor_id: "LOADCELL_001/NONE"
