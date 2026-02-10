@@ -3,13 +3,13 @@ loadcell_driver_node_1:
   ros__parameters:
     # 센서 식별자 (문자열)
     sensor_id: "LOADCELL_001/NONE"
-
     # 퍼블리시할 토픽 이름
     topic_name: "loadcell_driver_1"
 
-    # loadcell 포트
+    # loadcell 통신 설정
     loadcell_port: "/dev/WEIGHT_SENSOR"
-
-    # loadcell 은 485 통신이지만 address 가 없음
-    # 그러나 향후를 위해 parameter 를 남겨둠
-    loadcell_address: 0
+    loadcell_address: 0   # loadcell 은 485 통신이지만 address 가 없음. 그러나 향후를 위해 parameter 를 남겨둠
+    loadcell_baudrate: 9600
+    loadcell_batabits: 8
+    loadcell_parity: "N"
+    loadcell_stopbits: 1

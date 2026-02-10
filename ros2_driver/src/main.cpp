@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
     rclcpp::executors::MultiThreadedExecutor executor;
 
     /** SensorDriverBaseNode를 생성 */
-    auto node = std::make_shared<sensor_driver_base::LoadCellDriverNode>();
+    auto node = std::make_shared<loadcell_sensor::LoadCellDriverNode>();
 
     /** 초기화 */
     node->Initialize();

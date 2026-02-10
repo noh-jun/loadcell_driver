@@ -104,12 +104,6 @@ class SensorDriverNode : public rclcpp::Node {
   /** @brief DriverMeta 메시지 퍼블리셔 */
   rclcpp::Publisher<MetaMsg>::SharedPtr publisher_;
 
-  /** @brief IO 처리용 타이머(예: 500ms) */
-  rclcpp::TimerBase::SharedPtr timer_io_;
-
-  /** @brief 퍼블리시용 타이머(100ms 고정) */
-  rclcpp::TimerBase::SharedPtr timer_publish_;
-
   /**
    * @brief 드라이버 연결 상태 플래그.
    * true: 정상 연결/동작 가능, false: 미연결(재연결 필요)

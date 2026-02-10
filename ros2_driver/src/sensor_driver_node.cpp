@@ -22,7 +22,7 @@ namespace sensor_driver_base {
  */
 SensorDriverNode::SensorDriverNode() : rclcpp::Node("sensor_driver_node") {}
 
-SensorDriverNode::SensorDriverNode(const std::string &node_name)
+SensorDriverNode::SensorDriverNode(const std::string& node_name)
     : rclcpp::Node(node_name) {}
 
 SensorDriverNode::~SensorDriverNode() {
@@ -40,29 +40,19 @@ SensorDriverNode::~SensorDriverNode() {
 
 void SensorDriverNode::Initialize() {
   /** Parameters : 센서 식별자 선언 */
-  const std::string sensor_id =
-      declare_parameter<std::string>("sensor_id", "example_sensor");
+  const std::string sensor_id = declare_parameter<std::string>("sensor_id", "example_sensor");
   /** Parameters : 퍼블리시 토픽 이름 선언 */
-  const std::string topic_name =
-      declare_parameter<std::string>("topic_name", "driver_meta");
+  const std::string topic_name = declare_parameter<std::string>("topic_name", "driver_meta");
 
   /** Unique Key Generator */
   gen_seq_no_ = std::make_unique<sensor_driver_uk::GenSeqNo>();
   /** Parameters : 드라이버 인스턴스 식별자 선언 */
-  const std::string driver_instance_id =
-      sensor_driver_uk::GenerateInstanceID(sensor_id);
+  const std::string driver_instance_id = sensor_driver_uk::GenerateInstanceID(sensor_id);
   /** Data Builder */
   data_builder_ = std::make_unique<DataBuilder>(sensor_id, driver_instance_id);
 
   /** Publisher */
   publisher_ = this->create_publisher<MetaMsg>(topic_name, 1);
-
-  /** Timer : 500ms 주기로 IO 처리 */
-  timer_io_ = this->create_wall_timer(
-      500ms, std::bind(&SensorDriverNode::IO_Callback, this));
-  /** Timer : 100ms 주기로 퍼블리셔 동작 */
-  timer_publish_ = this->create_wall_timer(
-      100ms, std::bind(&SensorDriverNode::PublisherCallback, this));
 
   try {
     /** user params 변경 사항을 반영하기 위해 호출 */
@@ -70,7 +60,8 @@ void SensorDriverNode::Initialize() {
 
     /** user 연결 구현 시 자동 연결을 위해 호출 */
     Connect();
-  } catch (const std::exception &e) {
+  }
+  catch (const std::exception& e) {
     RCLCPP_ERROR(this->get_logger(), "%s", e.what());
     // Not process
   }
@@ -139,7 +130,8 @@ void SensorDriverNode::IO_Callback() {
 
       /** 재연결 성공 */
       connection_state_.store(true, std::memory_order_relaxed);
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception& e) {
       RCLCPP_ERROR(this->get_logger(), "%s", e.what());
 
       connection_state_.store(false, std::memory_order_relaxed);
@@ -147,7 +139,8 @@ void SensorDriverNode::IO_Callback() {
       /** 재연결 실패 시 다음 동작 Skip */
       return;
     }
-  } else {
+  }
+  else {
     // placeholder: 연결된 것으로 간주
     connection_state_.store(true, std::memory_order_relaxed);
   }
@@ -156,7 +149,8 @@ void SensorDriverNode::IO_Callback() {
     /** 드라이버 옵션 변경 */
     if (true == IsChangedOption())
       ChangeOption();
-  } catch (const std::exception &e) {
+  }
+  catch (const std::exception& e) {
     RCLCPP_ERROR(this->get_logger(), "%s", e.what());
     // Not process
   }
@@ -181,8 +175,9 @@ void SensorDriverNode::IO_Callback() {
       read_index_ = local_write_index;
       has_data_ = true;
     }
-  } catch (const std::exception &) {
-    // Not process
+  }
+  catch (const std::exception& e) {
+    RCLCPP_ERROR(this->get_logger(), "%s", e.what());
   }
 }
 
@@ -239,7 +234,7 @@ void SensorDriverNode::PublishOnce(std::size_t read_index) {
   gen_seq_no_->Increment();
 }
 
-void SensorDriverNode::PrintPublishData(MetaMsg &) {
+void SensorDriverNode::PrintPublishData(MetaMsg&) {
   // override
 }
-} // namespace sensor_driver_base
+}  // namespace sensor_driver_base

@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-#include <loadcell_comm/rs485/loadcell_comm/loadcell_485.hpp>
+#include <loadcell_comm/loadcell_485.h>
 
 namespace sensor_driver_base {
 
@@ -25,6 +25,6 @@ struct DataResult {
   std::uint8_t driver_state = DRIVER_STATE::ERROR;
   std::int32_t return_code = 0;
   std::string driver_err_msg = "";
-  LoadCellStatus status;
+  loadcell_comm::LoadCellStatus status;
 };
 }  // namespace sensor_driver_base

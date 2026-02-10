@@ -1,26 +1,25 @@
 // loadcell_driver_node.cpp
-
 #include "loadcell_driver_node.h"
 
-#include <cstdint>
-#include <iostream>
-#include <sstream>
-#include <stdexcept>
-#include <utility>
+#include <loadcell_comm/SerialConfig.h>
+#include <loadcell_comm/loadcell_485.h>
+#include <loadcell_comm/loadcell_exception.h>
 
-#include <loadcell_comm/rs485/loadcell_comm/loadcell_485.hpp>
-#include <loadcell_comm/rs485/loadcell_comm/SerialConfig.h>
-
-namespace sensor_driver_base {
+namespace loadcell_sensor {
 
 LoadCellDriverNode::LoadCellDriverNode()
-    : loadcell_(std::make_unique<LoadCell485>()) {}
+    : loadcell_(std::make_unique<loadcell_comm::LoadCell485>()) {}
 
 LoadCellDriverNode::~LoadCellDriverNode() = default;
 
 void LoadCellDriverNode::ParamChange() {
   loadcell_port_ = this->declare_parameter<std::string>("loadcell_port", "none");
-  loadcell_address_ = this->declare_parameter<int>("loadcell_address", -1);
+  // 485 통신인데 address 를 사용하지 않음
+  // loadcell_address_ = this->declare_parameter<int>("loadcell_address", -1);
+  loadcell_baudrate_ = this->declare_parameter<int>("loadcell_baudrate", 9600);
+  loadcell_databits_ = this->declare_parameter<int>("loadcell_databits", 8);
+  loadcell_parity_ = this->declare_parameter<std::string>("loadcell_parity", "N");
+  loadcell_stopbits_ = this->declare_parameter<int>("loadcell_stopbits", 1);
 }
 
 bool LoadCellDriverNode::IsConnected() {
@@ -31,95 +30,67 @@ bool LoadCellDriverNode::IsConnected() {
 }
 
 void LoadCellDriverNode::Connect() {
-  if (!loadcell_)
-    throw std::runtime_error("LoadCellDriverNode: loadcell_ is null");
-
   SerialConfig cfg;
   cfg.device = loadcell_port_;
-  cfg.baudrate = 9600;
-  cfg.data_bits = 8;
-  cfg.parity = 'N';
-  cfg.stop_bits = 1;
-  cfg.rtscts = false;
-  cfg.xonxoff = false;
-  cfg.vmin = 0;
-  cfg.vtime_ds = 1;
+  cfg.baudrate = loadcell_baudrate_;
+  cfg.data_bits = loadcell_databits_;
+  cfg.parity = loadcell_parity_[0];  // "N" -> 'N'
+  cfg.stop_bits = loadcell_stopbits_;
+  // 기타 설정은 기본값 사용
+
   const bool ok_open = loadcell_->Open(cfg);
   if (!ok_open) {
     std::ostringstream oss;
     oss << "LoadCellDriverNode: BatteryTabos485::Open() failed. ";
     oss << "Device: [ " << cfg.device << "] ";
-    oss << "last_error=\"" << loadcell_->LastError() << "\" ";
-    ;
-    oss << "io_error=\"" << loadcell_->LastIoError() << "\" ";
+    oss << "last_error=" << loadcell_->GetLastError();
     throw std::runtime_error(oss.str());
   }
 }
 
-void LoadCellDriverNode::GetData(DataResult &out) {
-  if (!loadcell_) {
-    throw std::runtime_error("LoadCellDriverNode::GetData: loadcell_ is null");
-  }
-
-  // LoadCell 프로토콜이 요청-응답형이면 polling 프레임을 먼저 보낸다.
-  // 스트리밍형이면 SendPoll() 호출을 제거하거나 파라미터로 토글하십시오.
-  const int send_rc = loadcell_->SendPoll();
-  if (LoadCell485::ResultCode::kOk != send_rc) {
-    std::ostringstream oss;
-    oss << "LoadCellDriverNode::GetData: SendPoll failed. ";
-    oss << "Result Code=" << send_rc << " ";
-    oss << "last_error=\"" << loadcell_->LastError() << "\" ";
-    oss << "io_error=\"" << loadcell_->LastIoError() << "\"";
-    throw std::runtime_error(oss.str());
-  }
-
+void LoadCellDriverNode::GetData(sensor_driver_base::DataResult& out) {
   try {
-    while (true) {
-      const int ret = loadcell_->RecvOnce(out.status);
+    loadcell_comm::LoadCellStatus status;
+    const loadcell_comm::ResultCode Res = loadcell_->RecvOnce(status);
 
-      if (LoadCell485::ResultCode::kNoFrame == ret) {
-        // 예제의 의도대로 non-blocking retry.
-        // CPU busy-spin이 문제가 되면 sleep/backoff 또는 timeout을 도입하십시오.
-        continue;
-      } else if (LoadCell485::ResultCode::kOk == ret) {
-        out.driver_state = DRIVER_STATE::OK;
-        out.return_code = ret;
+    switch (Res) {
+      case loadcell_comm::ResultCode::kOk:
+        out.driver_state = sensor_driver_base::DRIVER_STATE::OK;
+        out.return_code = static_cast<std::int32_t>(Res);
         out.driver_err_msg = "";
+        out.status = std::move(status);
         break;
-      } else {
-        std::ostringstream oss;
-        oss << "LoadCellDriverNode::GetData: RecvOnce failed. ";
-        oss << "Return Code=" << ret << " ";
-        oss << "last_error=\"" << loadcell_->LastError() << "\" ";
-        oss << "io_error=\"" << loadcell_->LastIoError() << "\"";
-
-        std::ostringstream error;
-        error << loadcell_->LastError() << "/" << loadcell_->LastIoError();
-
-        out.driver_state = DRIVER_STATE::ERROR;
-        out.return_code = ret;
-        out.driver_err_msg = error.str();
-        out.status = LoadCellStatus{};
-
-        throw std::runtime_error(oss.str());
-      }
+      case loadcell_comm::ResultCode::kFrameTooShort:
+      case loadcell_comm::ResultCode::kNoFrame:
+        out.driver_state = sensor_driver_base::DRIVER_STATE::EMPTY;
+        out.return_code = static_cast<std::int32_t>(Res);
+        out.driver_err_msg = loadcell_->GetLastError();
+        break;
+      case loadcell_comm::ResultCode::kIoReadFail:
+      default:
+        out.driver_state = sensor_driver_base::DRIVER_STATE::ERROR;
+        out.return_code = static_cast<std::int32_t>(Res);
+        out.driver_err_msg = loadcell_->GetLastError();
+        out.status = std::move(status);
+        break;
     }
-  } catch (const LoadCell485Exception &ex) {
+  }
+  catch (const loadcell_comm::LoadCell485Exception& ex) {
     std::ostringstream oss;
     oss << "LoadCellDriverNode::GetData: LoadCell485Exception. ";
     oss << "code=" << ex.Code() << " ";
-    oss << "what=\"" << ex.what() << "\"";
+    oss << "what=" << ex.what();
 
-    out.driver_state = DRIVER_STATE::ERROR;
+    out.driver_state = sensor_driver_base::DRIVER_STATE::ERROR;
     out.return_code = std::numeric_limits<std::int32_t>::min();
     out.driver_err_msg = oss.str();
-    out.status = LoadCellStatus{};
+    out.status = loadcell_comm::LoadCellStatus{};
 
     throw std::runtime_error(oss.str());
   }
 }
 
-void LoadCellDriverNode::PrintPublishData(MetaMsg &msg) {
+void LoadCellDriverNode::PrintPublishData(MetaMsg& msg) {
   std::ostringstream oss;
   oss << "=== LoadCellMeta ===\n";
   oss << "gross_weight=" << msg.values.gross_weight << "\n";
@@ -138,9 +109,8 @@ void LoadCellDriverNode::PrintPublishData(MetaMsg &msg) {
   oss << "overload_mark=" << static_cast<int>(msg.values.overload_mark) << "\n";
   oss << "out_of_tolerance_mark=" << static_cast<int>(msg.values.out_of_tolerance_mark) << "\n";
 
-  // ROS 로거에 붙이고 싶으면 SensorDriverNode가 제공하는 logger API를
-  // 사용하십시오. 여기서는 표준 출력으로 처리합니다.
+  // ROS 로거에 붙이고 싶으면 SensorDriverNode가 제공하는 logger API를 사용하십시오. 여기서는 표준 출력으로 처리합니다.
   std::cout << oss.str() << std::endl;
 }
 
-} // namespace sensor_driver_base
+}  // namespace loadcell_sensor
