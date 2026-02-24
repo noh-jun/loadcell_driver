@@ -2,6 +2,7 @@
 #include <memory>
 
 #include "loadcell_driver_node.h"
+#include "loadcell_simulator_node.h"
 #include "rclcpp/rclcpp.hpp"
 
 /**
@@ -22,7 +23,8 @@ int main(int argc, char* argv[]) {
     rclcpp::executors::MultiThreadedExecutor executor;
 
     /** SensorDriverBaseNode를 생성 */
-    auto node = std::make_shared<loadcell_sensor::LoadCellDriverNode>();
+    auto node = std::make_shared<loadcell_sensor::LoadCellSimulatorNode>();
+    // auto node = std::make_shared<loadcell_sensor::LoadCellDriverNode>();
 
     /** 초기화 */
     node->Initialize();
@@ -38,7 +40,8 @@ int main(int argc, char* argv[]) {
 
     /** 정상 종료를 의미하는 종료 코드를 반환한다. */
     return 0;
-  } catch (const std::exception& e) {
+  }
+  catch (const std::exception& e) {
     std::cerr << "(main-print) exception: " << e.what() << std::endl;
 
     /** ROS2 런타임을 종료하고 자원을 정리한다. */

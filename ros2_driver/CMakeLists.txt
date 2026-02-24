@@ -40,6 +40,7 @@ set(LOADCELL_DRIVER_SRC
   src/data_builder.cpp
   src/sensor_driver_node.cpp
   src/loadcell_driver_node.cpp
+  src/loadcell_simulator_node.cpp
   src/unique_key_generator.cpp
 )
 
