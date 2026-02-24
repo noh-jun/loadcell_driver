@@ -1,0 +1,12 @@
+loadcell_controller_node_1:
+  ros__parameters:
+
+    # 컨트롤러가 퍼블리시하는 토픽 이름
+    topic_name: "loadcell_driver_1"
+
+    # controller 에서 퍼블리시할 endpoint 값
+    zmq_endpoint: "tcp://localhost:5558"
+    
+    # controller 에서 퍼블리시할 topic 값
+    zmq_topic: "loadcell"
+    
